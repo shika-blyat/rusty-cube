@@ -32,7 +32,9 @@ struct State {
     swap_chain: wgpu::SwapChain,
     size: winit::dpi::PhysicalSize<u32>,
     clear_color: usize,
+    render_pipeline: wgpu::RenderPipeline,
 }
+
 impl State {
     fn new(window: &Window) -> Self {
         let size = window.inner_size();
