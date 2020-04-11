@@ -132,7 +132,16 @@ fn main() {
                         } => *control_flow = ControlFlow::Exit,
                         _ => *control_flow = ControlFlow::Wait,
                     },
-
+                    WindowEvent::MouseInput {
+                        state: m_state,
+                        button,
+                        ..
+                    } => match (m_state, button) {
+                        (ElementState::Pressed, MouseButton::Left) => {
+                            state.update_color(|x| if x == 2 { 0 } else { x + 1 })
+                        }
+                        _ => (),
+                    },
                     _ => *control_flow = ControlFlow::Wait,
                 }
             }
