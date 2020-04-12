@@ -28,16 +28,39 @@ const COLORS: [wgpu::Color; 3] = [
     },
 ];
 
+const VERTICES: &[Vertex] = &[
+    Vertex {
+        position: [0.0, -0.5, 0.0],
+        color: [1.0, 0.0, 0.0],
+    },
+    Vertex {
+        position: [-0.5, 0.5, 0.0],
+        color: [0.0, 1.0, 0.0],
+    },
+    Vertex {
+        position: [0.5, 0.5, 0.0],
+        color: [0.0, 0.0, 1.0],
+    },
+];
+
 struct State {
     surface: wgpu::Surface,
     adapter: wgpu::Adapter,
     device: wgpu::Device,
     queue: wgpu::Queue,
+    vertex_buffer: wgpu::Buffer,
     sc_desc: wgpu::SwapChainDescriptor,
     swap_chain: wgpu::SwapChain,
     size: winit::dpi::PhysicalSize<u32>,
     clear_color: usize,
     render_pipeline: wgpu::RenderPipeline,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+struct Vertex {
+    position: [f32; 3],
+    color: [f32; 3],
 }
 
 impl State {
@@ -107,12 +130,16 @@ impl State {
             sample_mask: !0,
             alpha_to_coverage_enabled: false,
         });
+        let vertex_buffer = device
+            .create_buffer_mapped(VERTICES.len(), wgpu::BufferUsage::VERTEX)
+            .fill_from_slice(VERTICES);
         Self {
             surface,
             adapter,
             device,
             queue,
             sc_desc,
+            vertex_buffer,
             swap_chain,
             size,
             clear_color: 0,
