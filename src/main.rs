@@ -1,8 +1,12 @@
+use glsl_to_spirv;
+use std::{fs::File, io::prelude::*, path::Path};
+
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
+
 const COLORS: [wgpu::Color; 3] = [
     wgpu::Color {
         r: 0.5,
@@ -23,6 +27,7 @@ const COLORS: [wgpu::Color; 3] = [
         a: 0.8,
     },
 ];
+
 struct State {
     surface: wgpu::Surface,
     adapter: wgpu::Adapter,
@@ -59,6 +64,49 @@ impl State {
             present_mode: wgpu::PresentMode::Vsync,
         };
         let swap_chain = device.create_swap_chain(&surface, &sc_desc);
+        let vs_src = include_str!("vert.glsl");
+        let fs_src = include_str!("frag.glsl");
+        let vs_spirv = glsl_to_spirv::compile(vs_src, glsl_to_spirv::ShaderType::Vertex).unwrap();
+        let fs_spirv = glsl_to_spirv::compile(fs_src, glsl_to_spirv::ShaderType::Fragment).unwrap();
+        let vs_data = wgpu::read_spirv(vs_spirv).unwrap();
+        let fs_data = wgpu::read_spirv(fs_spirv).unwrap();
+        let vs_module = device.create_shader_module(&vs_data);
+        let fs_module = device.create_shader_module(&fs_data);
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                bind_group_layouts: &[],
+            });
+        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            layout: &render_pipeline_layout,
+            vertex_stage: wgpu::ProgrammableStageDescriptor {
+                module: &vs_module,
+                entry_point: "main",
+            },
+            fragment_stage: Some(wgpu::ProgrammableStageDescriptor {
+                module: &fs_module,
+                entry_point: "main",
+            }),
+            rasterization_state: Some(wgpu::RasterizationStateDescriptor {
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: wgpu::CullMode::Back,
+                depth_bias: 0,
+                depth_bias_slope_scale: 0.0,
+                depth_bias_clamp: 0.0,
+            }),
+            color_states: &[wgpu::ColorStateDescriptor {
+                format: sc_desc.format,
+                color_blend: wgpu::BlendDescriptor::REPLACE,
+                alpha_blend: wgpu::BlendDescriptor::REPLACE,
+                write_mask: wgpu::ColorWrite::ALL,
+            }],
+            primitive_topology: wgpu::PrimitiveTopology::TriangleList,
+            depth_stencil_state: None,
+            index_format: wgpu::IndexFormat::Uint16,
+            vertex_buffers: &[],
+            sample_count: 1,
+            sample_mask: !0,
+            alpha_to_coverage_enabled: false,
+        });
         Self {
             surface,
             adapter,
@@ -68,6 +116,7 @@ impl State {
             swap_chain,
             size,
             clear_color: 0,
+            render_pipeline,
         }
     }
 
@@ -91,7 +140,7 @@ impl State {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
-        let _render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
                 attachment: &frame.view,
                 resolve_target: None,
@@ -101,7 +150,9 @@ impl State {
             }],
             depth_stencil_attachment: None,
         });
-        std::mem::drop(_render_pass);
+        render_pass.set_pipeline(&self.render_pipeline); // 2.
+        render_pass.draw(0..3, 0..1); // 3.
+        std::mem::drop(render_pass);
         self.queue.submit(&[encoder.finish()])
     }
 }

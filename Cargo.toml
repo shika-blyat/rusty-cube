@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 image = "0.22"
 winit = "0.20"
-shaderc = "*"
+glsl-to-spirv = "*"
 [dependencies.wgpu]
 version = "0.4"
 features = ["vulkan"]
