@@ -10,6 +10,7 @@ edition = "2018"
 image = "*"
 winit = "0.20"
 glsl-to-spirv = "*"
+freetype = "0.5.1"
 [dependencies.wgpu]
 version = "0.4"
 features = ["vulkan"]
