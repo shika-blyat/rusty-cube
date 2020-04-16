@@ -1,10 +1,10 @@
+use rusttype::{point, Font, Glyph, Scale};
 use winit::{
     dpi::PhysicalSize,
     event::*,
     event_loop::{ControlFlow, EventLoop},
     window::{Window, WindowBuilder},
 };
-
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 struct Vertex {
@@ -74,7 +74,12 @@ struct State {
 
     size: winit::dpi::PhysicalSize<u32>,
 }
-
+fn rgba_color(r: u32, g: u32, b: u32, a: u32) -> u32 {
+    let rgb = r << 24;
+    let rgb = rgb | (g << 16);
+    let rgb = rgb | (b << 8);
+    rgb | a
+}
 impl State {
     fn new(window: &Window) -> Self {
         let size = window.inner_size();
@@ -207,12 +212,28 @@ impl State {
         wgpu::BindGroup,
         wgpu::BindGroupLayout,
     ) {
-        let diffuse_bytes = include_bytes!("../happy-tree.png");
-        let diffuse_image = image::load_from_memory(diffuse_bytes).unwrap();
-        let diffuse_rgba = diffuse_image.as_rgba8().unwrap();
-
-        use image::GenericImageView;
-        let dimensions = diffuse_image.dimensions();
+        //let diffuse_bytes = include_bytes!("../happy-tree.png");
+        let font_bytes = include_bytes!("../arial.ttf");
+        let font = Font::from_bytes(font_bytes as &[u8]).expect("Failed to create font");
+        let glyph = font
+            .glyph('Φ')
+            .scaled(Scale { x: 200.0, y: 200.0 })
+            .positioned(point(10.0, 10.0));
+        let (gpos_x, gpos_y) = (glyph.position().x, glyph.position().y);
+        let mut font_buffer = vec![];
+        for _ in 0..40_000 {
+            font_buffer.push(rgba_color(255, 255, 255, 255));
+        }
+        glyph.draw(|x, y, v| {
+            if v > 0.95 {
+                font_buffer[((x + gpos_x as u32) * 200 + y + gpos_y as u32) as usize] =
+                    rgba_color(0, 0, 0, 255);
+            } /*else if v > 0.0 {
+                  font_buffer[((x + gpos_x as u32) * 200 + y + gpos_y as u32) as usize] =
+                      rgba_color(0, 0, 128, 255);
+              }*/
+        });
+        let dimensions = (200, 200);
 
         let size3d = wgpu::Extent3d {
             width: dimensions.0,
@@ -230,8 +251,8 @@ impl State {
         });
 
         let diffuse_buffer = device
-            .create_buffer_mapped(diffuse_rgba.len(), wgpu::BufferUsage::COPY_SRC)
-            .fill_from_slice(&diffuse_rgba);
+            .create_buffer_mapped(font_buffer.len(), wgpu::BufferUsage::COPY_SRC)
+            .fill_from_slice(&font_buffer);
 
         let mut encoder =
             device.create_command_encoder(&wgpu::CommandEncoderDescriptor { todo: 0 });
