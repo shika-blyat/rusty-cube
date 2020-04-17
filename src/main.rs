@@ -75,10 +75,7 @@ struct State {
     size: winit::dpi::PhysicalSize<u32>,
 }
 fn rgba_color(r: u32, g: u32, b: u32, a: u32) -> u32 {
-    let rgb = r << 24;
-    let rgb = rgb | (g << 16);
-    let rgb = rgb | (b << 8);
-    rgb | a
+    r | (g << 8) | (b << 16) | (a << 24)
 }
 impl State {
     fn new(window: &Window) -> Self {
@@ -173,8 +170,16 @@ impl State {
             primitive_topology: wgpu::PrimitiveTopology::TriangleList,
             color_states: &[wgpu::ColorStateDescriptor {
                 format: sc_desc.format,
-                color_blend: wgpu::BlendDescriptor::REPLACE,
-                alpha_blend: wgpu::BlendDescriptor::REPLACE,
+                color_blend: wgpu::BlendDescriptor {
+                    src_factor: wgpu::BlendFactor::SrcAlpha,
+                    dst_factor: wgpu::BlendFactor::OneMinusSrcAlpha,
+                    operation: wgpu::BlendOperation::Add,
+                },
+                alpha_blend: wgpu::BlendDescriptor {
+                    src_factor: wgpu::BlendFactor::One,
+                    dst_factor: wgpu::BlendFactor::One,
+                    operation: wgpu::BlendOperation::Add,
+                },
                 write_mask: wgpu::ColorWrite::ALL,
             }],
             depth_stencil_state: None,
@@ -213,25 +218,20 @@ impl State {
         wgpu::BindGroupLayout,
     ) {
         //let diffuse_bytes = include_bytes!("../happy-tree.png");
-        let font_bytes = include_bytes!("../arial.ttf");
+        let font_bytes = include_bytes!("../ttf/JetBrainsMono-Regular.ttf");
         let font = Font::from_bytes(font_bytes as &[u8]).expect("Failed to create font");
         let glyph = font
-            .glyph('Φ')
-            .scaled(Scale { x: 200.0, y: 200.0 })
+            .glyph('c')
+            .scaled(Scale { x: 50.0, y: 50.0 })
             .positioned(point(10.0, 10.0));
         let (gpos_x, gpos_y) = (glyph.position().x, glyph.position().y);
         let mut font_buffer = vec![];
         for _ in 0..40_000 {
-            font_buffer.push(rgba_color(255, 255, 255, 255));
+            font_buffer.push(rgba_color(255, 255, 255, 0));
         }
-        glyph.draw(|x, y, v| {
-            if v > 0.95 {
-                font_buffer[((x + gpos_x as u32) * 200 + y + gpos_y as u32) as usize] =
-                    rgba_color(0, 0, 0, 255);
-            } /*else if v > 0.0 {
-                  font_buffer[((x + gpos_x as u32) * 200 + y + gpos_y as u32) as usize] =
-                      rgba_color(0, 0, 128, 255);
-              }*/
+        glyph.draw(|y, x, v| {
+            font_buffer[((x + gpos_x as u32) * 200 + y + gpos_y as u32) as usize] =
+                rgba_color(255, 0, 0, (v * 255.0) as u32);
         });
         let dimensions = (200, 200);
 
